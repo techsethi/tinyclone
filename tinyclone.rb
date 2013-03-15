@@ -1,13 +1,18 @@
-%w(rubygems sinatra haml dm-core dm-timestamps dm-types uri restclient xmlsimple ./dirty_words).each  { |lib| require lib}
-disable :show_exceptions
+%w(rubygems sinatra haml dm-core dm-timestamps dm-types dm-migrations dm-transactions uri restclient xmlsimple ./dirty_words).each  { |lib| require lib}
+require 'awesome_print'
+require 'debugger'
+
+enable :show_exceptions
 enable :inline_templates
 get '/' do haml :index end
 
 post '/' do
+    puts "here1"
   uri = URI::parse(params[:original])
   custom = params[:custom].empty? ? nil : params[:custom]
   raise "Invalid URL" unless uri.kind_of? URI::HTTP or uri.kind_of? URI::HTTPS
   @link = Link.shorten(params[:original], custom) 
+  puts @link
   haml :index
 end
 
@@ -41,7 +46,8 @@ def get_remote_ip(env)
   end
 end
 
-DataMapper.setup(:default, ENV['DATABASE_URL'] || 'mysql://root:root@localhost/tinyclone')
+DataMapper.setup(:default, ENV['DATABASE_URL'] || 'mysql://root:root@localhost/db')
+
 class Url
   include DataMapper::Resource
   property  :id,          Serial
@@ -58,6 +64,7 @@ class Link
   
   def self.shorten(original, custom=nil)
     url = Url.first(:original => original) 
+    ap url
     return url.link if url    
     link = nil
     if custom
@@ -66,11 +73,14 @@ class Link
       transaction do |txn|
         link = Link.new(:identifier => custom)
         link.url = Url.create(:original => original)
+        debugger
         link.save        
       end
     else
       transaction do |txn|
         link = create_link(original)
+        puts "link"
+        ap link
       end    
     end
     return link
@@ -79,9 +89,13 @@ class Link
   private
   
   def self.create_link(original)
-    url = Url.create(:original => original)
-    if Link.first(:identifier => url.id.to_s(36)).nil? or !DIRTY_WORDS.include? url.id.to_s(36)
-      link = Link.new(:identifier => url.id.to_s(36))
+    url = Url.new(:original => original)
+    # debugger
+    
+    max_id = Url.max.id + 10001
+    identified_to_store = max_id.to_s(36)  
+    if Link.first(:identifier => identified_to_store).nil? or !DIRTY_WORDS.include? url.id.to_s(36)
+      link = Link.new(:identifier => identified_to_store)
       link.url = url
       link.save 
       return link     
@@ -125,7 +139,7 @@ class Visit
   end
   
   def self.count_by_date_with(identifier,num_of_days)
-    visits = repository(:default).adapter.query("SELECT date(created_at) as date, count(*) as count FROM visits where link_identifier = '#{identifier}' and created_at between CURRENT_DATE-#{num_of_days} and CURRENT_DATE+1 group by date(created_at)")
+    visits = repository(:default).adapter.select("SELECT date(created_at) as date, count(*) as count FROM visits where link_identifier = '#{identifier}' and created_at between CURRENT_DATE-#{num_of_days} and CURRENT_DATE+1 group by date(created_at)")
     dates = (Date.today-num_of_days..Date.today)
     results = {}
     dates.each { |date|
@@ -136,9 +150,11 @@ class Visit
   end
   
   def self.count_by_country_with(identifier)
-    repository(:default).adapter.query("SELECT country, count(*) as count FROM visits where link_identifier = '#{identifier}' group by country")    
+    repository(:default).adapter.select("SELECT country, count(*) as count FROM visits where link_identifier = '#{identifier}' group by country")    
   end
 end
+
+DataMapper.finalize
 
 __END__
 
@@ -154,17 +170,17 @@ __END__
       = yield
 
 @@ index
-%h1.title TinyClone
+%h1.title Timescity Tiny URL
 - unless @link.nil?
   .success
     %code= @link.url.original
     has been shortened to 
     %a{:href => "/#{@link.identifier}"}
-      = "http://tinyclone.saush.com/#{@link.identifier}"
+      = "http://tcity.me/#{@link.identifier}"
     %br
     Go to 
     %a{:href => "/info/#{@link.identifier}"}
-      = "http://tinyclone.saush.com/info/#{@link.identifier}"
+      = "http://tcity.me/info/#{@link.identifier}"
     to get more information about this link.
 - if env['sinatra.error']
   .error= env['sinatra.error'] 
@@ -173,16 +189,9 @@ __END__
   %input{:type => 'text', :name => 'original', :size => '70'} 
   %input{:type => 'submit', :value => 'now!'}
   %br
-  to http://tinyclone.saush.com/
+  to http://tcity.me/
   %input{:type => 'text', :name => 'custom', :size => '20'} 
   (optional)
-%p  
-%small copyright &copy;
-%a{:href => 'http://blog.saush.com'}
-  Chang Sau Sheong
-%p
-  %a{:href => 'http://github.com/sausheong/tinyclone'}
-    Full source code
     
 @@info
 %h1.title Information
@@ -191,7 +200,7 @@ __END__
 .span-3 Shortened
 .span-21.last
   %a{:href => "/#{@link.identifier}"}
-    = "http://tinyclone.saush.com/#{@link.identifier}"
+    = "http://tcity.me/#{@link.identifier}"
 .span-3 Date created
 .span-21.last= @link.created_at
 .span-3 Number of visits
