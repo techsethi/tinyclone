@@ -1,4 +1,4 @@
-%w(rubygems sinatra haml dm-core dm-timestamps dm-types dm-migrations dm-transactions uri restclient xmlsimple ./dirty_words).each  { |lib| require lib}
+%w(rubygems sinatra haml dm-core dm-timestamps dm-types dm-migrations dm-transactions uri rest_client xmlsimple ./dirty_words).each  { |lib| require lib}
 require 'awesome_print'
 require 'debugger'
 
@@ -46,7 +46,9 @@ def get_remote_ip(env)
   end
 end
 
-DataMapper.setup(:default, ENV['DATABASE_URL'] || 'mysql://root:root@localhost/db')
+DataMapper.setup(:default, ENV['DATABASE_URL'] || 'postgres://kmislhknjittlf:9vUM--tjfMlOOB8OmPX9ZHWERI@ec2-54-243-39-42.compute-1.amazonaws.com:5432/d2ulhknnfpiljp')
+
+# DataMapper.setup(:default, ENV['DATABASE_URL'] || 'mysql://root:times@321@localhost/tc_tiny_urls')
 
 class Url
   include DataMapper::Resource
@@ -73,7 +75,6 @@ class Link
       transaction do |txn|
         link = Link.new(:identifier => custom)
         link.url = Url.create(:original => original)
-        debugger
         link.save        
       end
     else
@@ -162,7 +163,7 @@ __END__
 !!! 1.1
 %html
   %head
-    %title TinyClone
+    %title Timescity Tiny URLs
     %link{:rel => 'stylesheet', :href => 'http://www.blueprintcss.org/blueprint/screen.css', :type => 'text/css'}  
   %body
     .container
@@ -170,7 +171,7 @@ __END__
       = yield
 
 @@ index
-%h1.title Timescity Tiny URL
+%h1.title Timescity Tiny URLs
 - unless @link.nil?
   .success
     %code= @link.url.original
