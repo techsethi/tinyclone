@@ -2,7 +2,7 @@
 require 'awesome_print'
 require 'debugger'
 
-enable :show_exceptions
+disable :show_exceptions
 enable :inline_templates
 get '/' do haml :index end
 
