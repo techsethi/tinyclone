@@ -2,6 +2,7 @@ GEM
   remote: http://rubygems.org/
   specs:
     addressable (2.2.8)
+    awesome_print (1.1.0)
     bcrypt-ruby (3.0.1)
     dm-core (1.2.0)
       addressable (~> 2.2.6)
@@ -44,6 +45,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  awesome_print
   dm-core
   dm-migrations
   dm-timestamps
