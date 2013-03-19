@@ -7,10 +7,10 @@ enable :inline_templates
 get '/' do haml :index end
 
 post '/' do
-    puts "here1"
   uri = URI::parse(params[:original])
   custom = params[:custom].empty? ? nil : params[:custom]
-  raise "Invalid URL" unless uri.kind_of? URI::HTTP or uri.kind_of? URI::HTTPS
+  raise "Invalid URL : #{params[:original]}" unless uri.kind_of? URI::HTTP or uri.kind_of? URI::HTTPS
+  raise "Only Timescity.com URLs can be shortened. [Invalid : #{params[:original]}]" unless uri.host.downcase == "timescity.com"
   @link = Link.shorten(params[:original], custom) 
   puts @link
   haml :index
@@ -31,9 +31,14 @@ end
 
 get '/:short_url' do 
   link = Link.first(:identifier => params[:short_url])
-  link.visits << Visit.create(:ip => get_remote_ip(env))
-  link.save
-  redirect link.url.original, 301
+  if link.nil?
+      status 404
+      haml :no_target
+  else      
+      link.visits << Visit.create(:ip => get_remote_ip(env))
+      link.save
+      redirect link.url.original, 301
+  end      
 end
 
 error do haml :index end
@@ -46,9 +51,8 @@ def get_remote_ip(env)
   end
 end
 
-DataMapper.setup(:default, ENV['DATABASE_URL'] || 'postgres://kmislhknjittlf:9vUM--tjfMlOOB8OmPX9ZHWERI@ec2-54-243-39-42.compute-1.amazonaws.com:5432/d2ulhknnfpiljp')
+DataMapper.setup(:default, ENV['DATABASE_URL'] || 'postgres://kmislhknjittlf:9vUM--tjfMlOOB8OmPX9ZHWERI@ec2-54-243-39-42.compute-1.amazonaws.com:5432/d2ulhknnfpiljp# ')
 
-# DataMapper.setup(:default, ENV['DATABASE_URL'] || 'mysql://root:times@321@localhost/tc_tiny_urls')
 
 class Url
   include DataMapper::Resource
@@ -66,7 +70,6 @@ class Link
   
   def self.shorten(original, custom=nil)
     url = Url.first(:original => original) 
-    ap url
     return url.link if url    
     link = nil
     if custom
@@ -169,6 +172,9 @@ __END__
     .container
       %p
       = yield
+      #footer  
+        %p  
+          copyright @timescity ver 0.2       
 
 @@ index
 %h1.title Timescity Tiny URLs
@@ -176,11 +182,11 @@ __END__
   .success
     %code= @link.url.original
     has been shortened to 
-    %a{:href => "/#{@link.identifier}"}
+    %a{:href => "http://tcity.me/#{@link.identifier}"}
       = "http://tcity.me/#{@link.identifier}"
     %br
     Go to 
-    %a{:href => "/info/#{@link.identifier}"}
+    %a{:href => "http://tcity.me/info/#{@link.identifier}"}
       = "http://tcity.me/info/#{@link.identifier}"
     to get more information about this link.
 - if env['sinatra.error']
@@ -193,7 +199,12 @@ __END__
   to http://tcity.me/
   %input{:type => 'text', :name => 'custom', :size => '20'} 
   (optional)
-    
+
+@@no_target
+%h3.title URL doesn't exists [#{params[:short_url]}]     
+%br
+  Go to <a href="http://timescity.com">Home Page</a>
+
 @@info
 %h1.title Information
 .span-3 Original
