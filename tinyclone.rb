@@ -4,7 +4,27 @@ require 'debugger'
 
 disable :show_exceptions
 enable :inline_templates
-get '/' do haml :index end
+
+helpers do
+
+  def protected!
+    unless authorized?
+      response['WWW-Authenticate'] = %(Basic realm="Restricted Area")
+      throw(:halt, [401, "Not authorized\n"])
+    end
+  end
+
+  def authorized?
+    @auth ||=  Rack::Auth::Basic::Request.new(request.env)
+    @auth.provided? && @auth.basic? && @auth.credentials && @auth.credentials == ['tcity', '123@t!mes']
+  end
+
+end
+
+get '/' do 
+    protected!
+    haml :index 
+end
 
 post '/' do
   uri = URI::parse(params[:original])
@@ -18,6 +38,7 @@ end
 
 ['/info/:short_url', '/info/:short_url/:num_of_days', '/info/:short_url/:num_of_days/:map'].each do |path|
   get path do
+    protected!
     @link = Link.first(:identifier => params[:short_url])
     raise 'This link is not defined yet' unless @link
     @num_of_days = (params[:num_of_days] || 15).to_i
@@ -29,6 +50,13 @@ end
   end
 end
 
+
+get "/list" do
+    protected!
+    @links = Link.all
+    haml :list
+end
+    
 get '/:short_url' do 
   link = Link.first(:identifier => params[:short_url])
   if link.nil?
@@ -53,6 +81,7 @@ end
 
 DataMapper.setup(:default, ENV['DATABASE_URL'] || 'postgres://kmislhknjittlf:9vUM--tjfMlOOB8OmPX9ZHWERI@ec2-54-243-39-42.compute-1.amazonaws.com:5432/d2ulhknnfpiljp# ')
 
+# DataMapper.setup(:default, ENV['DATABASE_URL'] || 'mysql://root:times@321@localhost/tc_tiny_urls')
 
 class Url
   include DataMapper::Resource
@@ -174,7 +203,9 @@ __END__
       = yield
       #footer  
         %p  
-          copyright @timescity ver 0.2       
+          <a href="/">Home</a> <a href="list">List</a> 
+        %p 
+        copyright @timescity ver 0.3      
 
 @@ index
 %h1.title Timescity Tiny URLs
@@ -237,4 +268,21 @@ __END__
   %img{:src => @count_country_map}
 .span-12.last
   %img{:src => @count_country_bar}
+%p
+
+@@ list
+%h1.title List of URLs
+%table
+  %tbody
+  %tr
+  %th Tiny URL
+  %th Original
+  %th Created Date 
+  %th Total Hits
+  - @links.each do |l|
+    %tr
+      %td= "<a href = 'http://tcity.me/info/#{l.identifier}'>#{l.identifier}</a>"
+      %td= l.url.original
+      %td= l.created_at
+      %td= l.visits.size
 %p
