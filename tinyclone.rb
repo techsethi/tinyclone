@@ -16,7 +16,7 @@ helpers do
 
   def authorized?
     @auth ||=  Rack::Auth::Basic::Request.new(request.env)
-    @auth.provided? && @auth.basic? && @auth.credentials && @auth.credentials == ['USERNAME', 'PASSWORD']
+    @auth.provided? && @auth.basic? && @auth.credentials && @auth.credentials == ['tcity', '123@t!mes']
   end
 
   def date_format(input_date)
