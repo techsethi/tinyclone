@@ -19,6 +19,11 @@ helpers do
     @auth.provided? && @auth.basic? && @auth.credentials && @auth.credentials == ['tcity', '123@t!mes']
   end
 
+  def date_format(input_date)
+    return 'N/A' if input_date.nil?
+    return input_date.strftime("%Y-%m-%d %l:%M %P")
+  end
+
 end
 
 get '/' do 
@@ -30,7 +35,7 @@ post '/' do
   uri = URI::parse(params[:original])
   custom = params[:custom].empty? ? nil : params[:custom]
   raise "Invalid URL : #{params[:original]}" unless uri.kind_of? URI::HTTP or uri.kind_of? URI::HTTPS
-  raise "Only Timescity.com URLs can be shortened. [Invalid : #{params[:original]}]" unless uri.host.downcase == "timescity.com"
+  # raise "Only Timescity.com URLs can be shortened. [Invalid : #{params[:original]}]" unless uri.host.downcase == "timescity.com"
   @link = Link.shorten(params[:original], custom) 
   puts @link
   haml :index
@@ -53,6 +58,17 @@ end
 
 get "/list" do
     protected!
+    @links = Link.all
+    haml :list
+end
+
+get "/delete/:identifier_to_delete" do
+    protected!
+    ap :identifier_to_delete
+    @link = Link.get(params[:identifier_to_delete])
+    ap @link
+    @link.destroy
+    @message = "Link '#{params[:identifier_to_delete]}' has been deleted."
     @links = Link.all
     haml :list
 end
@@ -202,10 +218,11 @@ __END__
       %p
       = yield
       #footer  
+        %br
         %p  
-          <a href="/">Home</a> <a href="list">List</a> 
+          <a href="/">Home</a> <a href="/list">List</a> 
         %p 
-        copyright @timescity ver 0.3      
+        copyright @timescity ver 0.4     
 
 @@ index
 %h1.title Timescity Tiny URLs
@@ -271,18 +288,37 @@ __END__
 %p
 
 @@ list
+<!-- DataTables CSS -->
+<link rel="stylesheet" type="text/css" href="http://ajax.aspnetcdn.com/ajax/jquery.dataTables/1.9.4/css/jquery.dataTables.css">
+ 
+<!-- jQuery -->
+<script type="text/javascript" charset="utf8" src="http://ajax.aspnetcdn.com/ajax/jQuery/jquery-1.8.2.min.js"></script>
+ 
+<!-- DataTables -->
+<script type="text/javascript" charset="utf8" src="http://ajax.aspnetcdn.com/ajax/jquery.dataTables/1.9.4/jquery.dataTables.min.js"></script>
 %h1.title List of URLs
-%table
-  %tbody
-  %tr
-  %th Tiny URL
-  %th Original
-  %th Created Date 
-  %th Total Hits
-  - @links.each do |l|
+%h5= @message.nil? ? "&nbsp;" : @message
+%table#data
+  %thead
     %tr
-      %td= "<a href = 'http://tcity.me/info/#{l.identifier}'>#{l.identifier}</a>"
-      %td= l.url.original
-      %td= l.created_at
-      %td= l.visits.size
-%p
+      %th Tiny URL
+      %th Original
+      %th Created Date 
+      %th Total Hits
+      %th &nbsp;
+  %tbody
+    - @links.each do |l|
+      %tr
+        %td= "<a href = 'http://tcity.me/info/#{l.identifier}'>#{l.identifier}</a>"
+        %td= l.url.original
+        %td= date_format(l.created_at)
+        %td= l.visits.size
+        %td= "<a href='/delete/#{l.identifier}'>Delete</a>"
+<script language='javascript'>
+$(document).ready(function(){
+$('#data').dataTable({
+"aaSorting": [[ 2, "desc" ]],
+"iDisplayLength": 25
+});
+});
+</script>
