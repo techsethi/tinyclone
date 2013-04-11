@@ -1,6 +1,7 @@
 %w(rubygems sinatra haml dm-core dm-timestamps dm-types dm-migrations dm-transactions uri rest_client xmlsimple ./dirty_words).each  { |lib| require lib}
 require 'awesome_print'
 require 'debugger'
+require 'uri'
 
 disable :show_exceptions
 enable :inline_templates
@@ -79,7 +80,12 @@ get '/:short_url' do
       status 404
       haml :no_target
   else      
-      link.visits << Visit.create(:ip => get_remote_ip(env))
+      ap "request:"
+      ap request
+      link.visits << Visit.create(:ip => get_remote_ip(env),
+                                  :http_user_agent =>  env['HTTP_USER_AGENT'],
+                                  :http_referer => env['HTTP_REFERER']
+                  )
       link.save
       redirect link.url.original, 301
   end      
@@ -95,14 +101,14 @@ def get_remote_ip(env)
   end
 end
 
-DataMapper.setup(:default, ENV['DATABASE_URL'] || 'postgres://kmislhknjittlf:9vUM--tjfMlOOB8OmPX9ZHWERI@ec2-54-243-39-42.compute-1.amazonaws.com:5432/d2ulhknnfpiljp# ')
+# DataMapper.setup(:default, ENV['DATABASE_URL'] || 'postgres://kmislhknjittlf:9vUM--tjfMlOOB8OmPX9ZHWERI@ec2-54-243-39-42.compute-1.amazonaws.com:5432/d2ulhknnfpiljp# ')
 
-# DataMapper.setup(:default, ENV['DATABASE_URL'] || 'mysql://root:times@321@localhost/tc_tiny_urls')
+ DataMapper.setup(:default, ENV['DATABASE_URL'] || 'mysql://root:times@321@localhost/tc_tiny_urls')
 
 class Url
   include DataMapper::Resource
   property  :id,          Serial
-  property  :original,    String, :length => 255   
+  property  :original,    String, :length =>  1024
   belongs_to  :link
 end
 
@@ -161,6 +167,8 @@ class Visit
   property  :created_at,  DateTime
   property  :ip,          IPAddress
   property  :country,     String
+  property  :http_user_agent,   String, :length =>  1024
+  property  :http_referer,  String, :length =>  1024
   belongs_to  :link
   
   after :create, :set_country
@@ -203,7 +211,7 @@ class Visit
   end
 end
 
-DataMapper.finalize
+DataMapper.auto_upgrade!
 
 __END__
 
@@ -230,7 +238,7 @@ __END__
   .success
     %code= @link.url.original
     has been shortened to 
-    %a{:href => "http://tcity.me/#{@link.identifier}"}
+    %a{:href => "/#{@link.identifier}"}
       = "http://tcity.me/#{@link.identifier}"
     %br
     Go to 
