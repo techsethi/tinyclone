@@ -238,7 +238,7 @@ __END__
         %p  
           <a href="/">Home</a> <a href="/list">List</a> 
         %p 
-        copyright @timescity ver 0.4     
+        copyright @timescity ver 0.5     
 
 @@ index
 %h1.title Timescity Tiny URLs
