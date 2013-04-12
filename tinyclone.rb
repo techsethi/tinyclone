@@ -56,18 +56,25 @@ end
   end
 end
 
+['/visits/:short_url'].each do |path|
+  get path do
+    protected!
+    @visits = Visit.all(:link_identifier => params[:short_url], :order => [:created_at.desc])
+    raise 'This link is not defined yet' unless @visits
+    haml :visits
+  end
+end
+
 
 get "/list" do
     protected!
-    @links = Link.all
+    @links = Link.all(:order => [:created_at.desc])
     haml :list
 end
 
 get "/delete/:identifier_to_delete" do
     protected!
-    ap :identifier_to_delete
     @link = Link.get(params[:identifier_to_delete])
-    ap @link
     @link.destroy
     @message = "Link '#{params[:identifier_to_delete]}' has been deleted."
     @links = Link.all
@@ -80,14 +87,12 @@ get '/:short_url' do
       status 404
       haml :no_target
   else      
-      ap "request:"
-      ap request
       link.visits << Visit.create(:ip => get_remote_ip(env),
                                   :http_user_agent =>  env['HTTP_USER_AGENT'],
                                   :http_referer => env['HTTP_REFERER']
                   )
       link.save
-      redirect link.url.original, 301
+      redirect link.url.original, 302
   end      
 end
 
@@ -101,9 +106,9 @@ def get_remote_ip(env)
   end
 end
 
-# DataMapper.setup(:default, ENV['DATABASE_URL'] || 'postgres://kmislhknjittlf:9vUM--tjfMlOOB8OmPX9ZHWERI@ec2-54-243-39-42.compute-1.amazonaws.com:5432/d2ulhknnfpiljp# ')
+DataMapper.setup(:default, ENV['DATABASE_URL'] || 'postgres://kmislhknjittlf:9vUM--tjfMlOOB8OmPX9ZHWERI@ec2-54-243-39-42.compute-1.amazonaws.com:5432/d2ulhknnfpiljp# ')
 
- DataMapper.setup(:default, ENV['DATABASE_URL'] || 'mysql://root:times@321@localhost/tc_tiny_urls')
+# DataMapper.setup(:default, ENV['DATABASE_URL'] || 'mysql://root:times@321@localhost/tc_tiny_urls')
 
 class Url
   include DataMapper::Resource
@@ -211,6 +216,8 @@ class Visit
   end
 end
 
+DataMapper.finalize
+# DataMapper::Logger.new(STDOUT,  :debug)
 DataMapper.auto_upgrade!
 
 __END__
@@ -226,6 +233,7 @@ __END__
       %p
       = yield
       #footer  
+        %br
         %br
         %p  
           <a href="/">Home</a> <a href="/list">List</a> 
@@ -305,28 +313,67 @@ __END__
 <!-- DataTables -->
 <script type="text/javascript" charset="utf8" src="http://ajax.aspnetcdn.com/ajax/jquery.dataTables/1.9.4/jquery.dataTables.min.js"></script>
 %h1.title List of URLs
-%h5= @message.nil? ? "&nbsp;" : @message
+%h5= @message.nil? ? "" : @message
 %table#data
   %thead
     %tr
+      %th
       %th Tiny URL
       %th Original
       %th Created Date 
       %th Total Hits
       %th &nbsp;
   %tbody
+    - count = 0
     - @links.each do |l|
       %tr
+        %td= count = count + 1
         %td= "<a href = 'http://tcity.me/info/#{l.identifier}'>#{l.identifier}</a>"
         %td= l.url.original
         %td= date_format(l.created_at)
-        %td= l.visits.size
+        %td= "<a href='/visits/#{l.identifier}'>#{l.visits.size}</a>"
         %td= "<a href='/delete/#{l.identifier}'>Delete</a>"
 <script language='javascript'>
 $(document).ready(function(){
 $('#data').dataTable({
-"aaSorting": [[ 2, "desc" ]],
 "iDisplayLength": 25
+});
+});
+</script>
+
+@@ visits
+<!-- DataTables CSS -->
+<link rel="stylesheet" type="text/css" href="http://ajax.aspnetcdn.com/ajax/jquery.dataTables/1.9.4/css/jquery.dataTables.css">
+ 
+<!-- jQuery -->
+<script type="text/javascript" charset="utf8" src="http://ajax.aspnetcdn.com/ajax/jQuery/jquery-1.8.2.min.js"></script>
+ 
+<!-- DataTables -->
+<script type="text/javascript" charset="utf8" src="http://ajax.aspnetcdn.com/ajax/jquery.dataTables/1.9.4/jquery.dataTables.min.js"></script>
+%h1.title List of Visits
+%h4= "For <a href='/#{params[:short_url]}'>#{params[:short_url]}</a>"
+%h5= @message.nil? ? "" : @message
+%table#data
+  %thead
+    %tr
+      %th
+      %th Timestamp
+      %th IP
+      %th HTTP User Agent
+      %th HTTP Referer
+  %tbody
+    - count = 0
+    - @visits.each do |l|
+      %tr
+        %td= count = count + 1
+        %td= date_format(l.created_at)
+        %td= "<a href='http://www.whois.net/ip-address-lookup/#{l.ip}'>#{l.ip}</a>"
+        %td= l.http_user_agent.nil? ? "N/A" : l.http_user_agent
+        %td= l.http_referer.nil? ? "N/A" : l.http_referer
+<script language='javascript'>
+$(document).ready(function(){
+$('#data').dataTable({
+"iDisplayLength": 50
 });
 });
 </script>
