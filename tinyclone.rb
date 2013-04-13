@@ -106,9 +106,8 @@ def get_remote_ip(env)
   end
 end
 
-DataMapper.setup(:default, ENV['DATABASE_URL'] || 'postgres://kmislhknjittlf:9vUM--tjfMlOOB8OmPX9ZHWERI@ec2-54-243-39-42.compute-1.amazonaws.com:5432/d2ulhknnfpiljp# ')
-
-# DataMapper.setup(:default, ENV['DATABASE_URL'] || 'mysql://root:times@321@localhost/tc_tiny_urls')
+DataMapper.setup(:default, ENV['DATABASE_URL'] 
+# DataMapper.setup(:default, ENV['DATABASE_URL'] || 'mysql://root:root@localhost/tc_tiny_urls')
 
 class Url
   include DataMapper::Resource
